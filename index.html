@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>人潮快閃 PAC - Crowd Flash PAC</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'PingFang TC', 'Microsoft JhengHei', 'Arial', sans-serif;
+            color: #fff;
+        }
+
+        .game-container {
+            text-align: center;
+            position: relative;
+        }
+
+        .game-header {
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            min-width: 600px;
+            background: rgba(0,0,0,0.7);
+            padding: 10px 20px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .game-info {
+            font-size: 14px;
+            display: flex;
+            gap: 20px;
+        }
+
+        .efficiency-score { color: #00ff88; }
+        .time-left { color: #ff6b6b; }
+        .radar-count { color: #4ecdc4; }
+
+        .time-bar-container {
+            width: 200px;
+            height: 8px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .time-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #ff6b6b, #ffa726);
+            transition: width 0.3s ease;
+        }
+
+        .crowd-indicator {
+            position: absolute;
+            top: -55px; /* Adjust position */
+            right: 0px;
+            background: rgba(0,0,0,0.7);
+            padding: 5px 10px;
+            border-radius: 8px;
+            font-size: 12px;
+        }
+
+        .traffic-light {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin: 0 2px;
+            vertical-align: middle;
+        }
+
+        .green { background: #4caf50; }
+        .yellow { background: #ff9800; }
+        .red { background: #f44336; }
+
+        #gameBoard {
+            border: 3px solid #4ecdc4;
+            background: #000;
+            position: relative;
+            margin: 0 auto;
+            box-shadow: 0 0 30px rgba(78, 205, 196, 0.3);
+            transition: filter 0.2s ease-in-out;
+        }
+
+        .game-over, .game-win {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.95);
+            padding: 30px;
+            border: 3px solid;
+            border-radius: 15px;
+            text-align: center;
+            display: none;
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+            width: 300px;
+        }
+
+        .game-over { border-color: #ff6b6b; }
+        .game-win { border-color: #4ecdc4; }
+
+        .controls {
+            margin-top: 15px;
+            font-size: 12px;
+            color: #aaa;
+            background: rgba(0,0,0,0.5);
+            padding: 10px;
+            border-radius: 8px;
+        }
+
+        button {
+            background: linear-gradient(45deg, #4ecdc4, #44a08d);
+            color: #fff;
+            border: none;
+            padding: 12px 24px;
+            font-size: 14px;
+            cursor: pointer;
+            margin-top: 20px;
+            border-radius: 25px;
+            transition: all 0.3s ease;
+            font-family: inherit;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(78, 205, 196, 0.4);
+        }
+
+        .legend {
+            position: absolute;
+            top: 80px;
+            right: -170px; /* Adjust position */
+            background: rgba(0,0,0,0.7);
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 12px;
+            width: 150px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin: 5px 0;
+        }
+
+        .legend-icon {
+            width: 12px;
+            height: 12px;
+            margin-right: 8px;
+            border-radius: 2px;
+            flex-shrink: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="game-header">
+            <div class="game-info">
+                <span class="efficiency-score">效率分數: <span id="score">0</span></span>
+                <span class="radar-count">AI雷達: <span id="radarCount">3</span></span>
+            </div>
+            <div class="time-bar-container">
+                <div class="time-bar" id="timeBar" style="width: 100%;"></div>
+            </div>
+            <div class="time-left">剩餘時間: <span id="timeLeft">120</span>s</div>
+        </div>
+        
+        <canvas id="gameBoard" width="600" height="420"></canvas>
+        
+        <div class="crowd-indicator">
+            <span class="traffic-light green"></span> 暢通
+            <span class="traffic-light yellow"></span> 稍擠  
+            <span class="traffic-light red"></span> 擁擠
+        </div>
+
+        <div class="legend">
+            <div style="font-weight: bold; margin-bottom: 8px;">圖例</div>
+            <div class="legend-item">
+                <div class="legend-icon" style="background: #ffd700; border-radius: 50%;"></div>筆記 (+5)
+            </div>
+            <div class="legend-item">
+                <div class="legend-icon" style="background: #ff6b6b; border-radius: 50%;"></div>便當 (+10)
+            </div>
+            <div class="legend-item">
+                <div class="legend-icon" style="background: #4ecdc4; border-radius: 50%;"></div>讀書時數 (+15)
+            </div>
+            <div class="legend-item">
+                <div class="legend-icon" style="background: #9b59b6; border-radius: 50%;"></div>廁所券 (+20)
+            </div>
+             <div class="legend-item">
+                <div class="legend-icon" style="background: #ff9800; width: 12px; height: 12px; border-radius: 2px;"></div>替代點 (+30)
+            </div>
+            <div class="legend-item" style="margin-top: 10px;">
+                <div class="legend-icon" style="background: #00ff88; border-radius: 50%;"></div>AI雷達 (道具)
+            </div>
+        </div>
+        
+        <div class="game-over" id="gameOver">
+            <h2>時間耗盡！</h2>
+            <p>你被人潮困住了...</p>
+            <p>最終效率分數: <span id="finalScore">0</span></p>
+            <button onclick="restartGame()">重新開始</button>
+        </div>
+
+        <div class="game-win" id="gameWin">
+            <h2>🎉 成功脫離人潮！</h2>
+            <p>你找到了時間出口門！</p>
+            <p>最終效率分數: <span id="winScore">0</span></p>
+            <button onclick="restartGame()">下一關</button>
+        </div>
+        
+        <div class="controls">
+            方向鍵/WASD 移動 | 空白鍵 使用AI雷達 | 收集效率點數，避開擁擠區域！<br>
+            🎯 目標：收集 300 效率分數並找到時間出口門
+        </div>
+    </div>
+
+    <script>
+        // DOM Elements
+        const canvas = document.getElementById('gameBoard');
+        const ctx = canvas.getContext('2d');
+        const scoreElement = document.getElementById('score');
+        const timeLeftElement = document.getElementById('timeLeft');
+        const timeBarElement = document.getElementById('timeBar');
+        const radarCountElement = document.getElementById('radarCount');
+        const gameOverElement = document.getElementById('gameOver');
+        const gameWinElement = document.getElementById('gameWin');
+        const finalScoreElement = document.getElementById('finalScore');
+        const winScoreElement = document.getElementById('winScore');
+
+        // Game Constants
+        const CELL_SIZE = 20;
+        const BOARD_WIDTH = 30;
+        const BOARD_HEIGHT = 21;
+        const WIN_SCORE = 300;
+        const MAX_TIME = 120;
+        
+        // Game State
+        let score, timeLeft, radarCount, gameRunning, pac, crowdMonsters;
+        let radarActive, radarTimer, timeCrackMode, timeCrackTimer, crowdZoneUpdateTimer;
+        let gameLoop, timeInterval;
+        let efficiencyDots, radarDots, alternativePoints, crowdZones;
+
+        // Campus Maze Layout (1: Wall, 2: Path, 9: Exit)
+        const maze = [
+            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+            [1,2,2,2,2,2,2,2,2,2,2,2,2,2,1,1,2,2,2,2,2,2,2,2,2,2,2,2,2,1],
+            [1,2,1,1,1,1,2,1,1,1,1,1,1,2,1,1,2,1,1,1,1,1,1,2,1,1,1,1,2,1],
+            [1,2,1,0,0,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,0,0,1,2,1],
+            [1,2,1,1,1,1,2,1,1,2,1,1,1,1,1,1,1,1,1,1,2,1,1,2,1,1,1,1,2,1],
+            [1,2,2,2,2,2,2,1,1,2,2,2,2,1,1,1,1,2,2,2,2,1,1,2,2,2,2,2,2,1],
+            [1,1,1,1,1,1,2,1,1,1,1,1,0,1,1,1,1,0,1,1,1,1,1,2,1,1,1,1,1,1],
+            [0,0,0,0,0,1,2,1,1,0,0,0,0,0,0,0,0,0,0,0,0,1,1,2,1,0,0,0,0,0],
+            [1,1,1,1,1,1,2,1,1,0,1,1,1,1,9,1,1,1,1,1,0,1,1,2,1,1,1,1,1,1],
+            [1,2,2,2,2,2,2,0,0,0,1,0,0,0,0,0,0,0,0,1,0,0,0,2,2,2,2,2,2,1],
+            [1,2,1,1,1,1,2,1,1,0,1,0,0,0,0,0,0,0,0,1,0,1,1,2,1,1,1,1,2,1],
+            [1,2,1,0,0,1,2,1,1,0,1,1,1,0,0,0,1,1,1,1,0,1,1,2,1,0,0,1,2,1],
+            [1,2,1,1,1,1,2,1,1,0,0,0,0,0,0,0,0,0,0,0,0,1,1,2,1,1,1,1,2,1],
+            [1,2,2,2,2,2,2,2,2,2,2,2,2,1,1,1,1,2,2,2,2,2,2,2,2,2,2,2,2,1],
+            [1,2,1,1,1,1,2,1,1,1,1,1,2,1,1,1,1,2,1,1,1,1,1,2,1,1,1,1,2,1],
+            [1,2,2,2,1,1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,1,2,2,2,1],
+            [1,1,1,2,1,1,2,1,1,2,1,1,1,1,1,1,1,1,1,1,2,1,1,2,1,1,2,1,1,1],
+            [1,2,2,2,2,2,2,1,1,2,2,2,2,1,1,1,1,2,2,2,2,1,1,2,2,2,2,2,2,1],
+            [1,2,1,1,1,1,1,1,1,1,1,1,2,1,1,1,1,2,1,1,1,1,1,1,1,1,1,1,2,1],
+            [1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1],
+            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+        ];
+
+        function initGame() {
+            // Reset Game State
+            score = 0;
+            timeLeft = MAX_TIME;
+            radarCount = 3;
+            gameRunning = true;
+            radarActive = false;
+            radarTimer = 0;
+            timeCrackMode = false;
+            timeCrackTimer = 0;
+            crowdZoneUpdateTimer = 0;
+
+            // Reset UI
+            gameOverElement.style.display = 'none';
+            gameWinElement.style.display = 'none';
+            canvas.style.filter = 'none';
+            updateScore();
+            updateTime();
+            updateRadarCount();
+            
+            // Initialize Game Entities
+            pac = { x: 1, y: 1, direction: 'right', nextDirection: 'right', speed: 1 };
+            crowdMonsters = [
+                { x: 14, y: 7, direction: 'up', type: 'office' },
+                { x: 15, y: 13, direction: 'down', type: 'cafeteria' },
+                { x: 5, y: 15, direction: 'left', type: 'library' },
+                { x: 24, y: 5, direction: 'right', type: 'bathroom' }
+            ];
+
+            // Initialize Dynamic Elements
+            crowdZones = [
+                { id: 0, x: 2, y: 2, width: 12, height: 6, status: 'green', timer: Math.random() * 200, nextStatus: 'yellow' },
+                { id: 1, x: 16, y: 2, width: 12, height: 6, status: 'yellow', timer: Math.random() * 200, nextStatus: 'red' },
+                { id: 2, x: 2, y: 14, width: 12, height: 5, status: 'red', timer: Math.random() * 200, nextStatus: 'green' },
+                { id: 3, x: 16, y: 14, width: 12, height: 5, status: 'green', timer: Math.random() * 200, nextStatus: 'yellow' }
+            ];
+            generateEfficiencyDots();
+            generateRadarDots();
+            generateAlternativePoints();
+
+            // Start Game Loops
+            if (gameLoop) clearInterval(gameLoop);
+            if (timeInterval) clearInterval(timeInterval);
+            gameLoop = setInterval(updateGame, 1000 / 20); // 20 FPS for game logic
+            timeInterval = setInterval(updateSecond, 1000);
+        }
+
+        // --- Generation Functions ---
+        function generateEfficiencyDots() {
+            efficiencyDots = [];
+            const types = [
+                { type: 'note', value: 5 }, 
+                { type: 'lunchbox', value: 10 }, 
+                { type: 'study-hour', value: 15 },
+                { type: 'toilet-ticket', value: 20 }
+            ];
+            for (let y = 0; y < BOARD_HEIGHT; y++) {
+                for (let x = 0; x < BOARD_WIDTH; x++) {
+                    if (maze[y][x] === 2 && Math.random() < 0.25) {
+                        const dotType = types[Math.floor(Math.random() * types.length)];
+                        efficiencyDots.push({ x, y, type: dotType.type, value: dotType.value });
+                    }
+                }
+            }
+        }
+        function generateRadarDots() {
+            radarDots = [];
+            for (let i = 0; i < 4; i++) {
+                let x, y;
+                do {
+                    x = Math.floor(Math.random() * BOARD_WIDTH);
+                    y = Math.floor(Math.random() * BOARD_HEIGHT);
+                } while (maze[y][x] !== 2);
+                radarDots.push({ x, y });
+            }
+        }
+        function generateAlternativePoints() {
+            alternativePoints = [];
+            const positions = [ {x: 3, y: 3}, {x: 26, y: 3}, {x: 3, y: 11}, {x: 26, y: 11} ];
+            positions.forEach(pos => {
+                if(maze[pos.y][pos.x] === 0 || maze[pos.y][pos.x] === 2) { // Allow on path or special empty spaces
+                    alternativePoints.push({ x: pos.x, y: pos.y, bonus: 30 });
+                }
+            });
+        }
+        
+        // --- Update and Logic Functions ---
+        function updateGame() {
+            if (!gameRunning) return;
+            movePac();
+            moveMonsters();
+            checkCollisions();
+            updateMechanics();
+            drawGame();
+        }
+        
+        function updateSecond() {
+            if (!gameRunning) return;
+            timeLeft--;
+            const currentZone = isInCrowdZone(pac.x, pac.y);
+            if (currentZone && currentZone.status === 'red' && !timeCrackMode) {
+                timeLeft--; // Double time consumption
+            }
+            updateTime();
+            if (timeLeft <= 0) {
+                endGame("時間耗盡！");
+            }
+        }
+
+        function updateMechanics() {
+            // Crowd Zone Updates
+            const statuses = ['green', 'yellow', 'red'];
+            crowdZones.forEach(zone => {
+                zone.timer++;
+                if (zone.timer > 300) { // Change every 15 seconds
+                    zone.timer = 0;
+                    zone.status = zone.nextStatus;
+                    zone.nextStatus = statuses[Math.floor(Math.random() * statuses.length)];
+                }
+            });
+            
+            // AI Radar Timer
+            if (radarActive) {
+                radarTimer--;
+                if (radarTimer <= 0) radarActive = false;
+            }
+
+            // Time Crack Mechanism
+            const zone = isInCrowdZone(pac.x, pac.y);
+            if (zone && zone.status === 'red') {
+                timeCrackTimer++;
+                if (timeCrackTimer > 60) { // 3 seconds at 20fps
+                    timeCrackMode = true;
+                }
+            } else {
+                timeCrackTimer = 0;
+                timeCrackMode = false;
+                canvas.style.filter = 'none';
+            }
+
+            if (timeCrackMode) {
+                score = Math.max(0, score - 0.1); // Score deduction
+                updateScore();
+                // Visual effect handled in drawGame
+                canvas.style.filter = `blur(1px) contrast(1.5) hue-rotate(${Date.now() % 360}deg)`;
+            }
+        }
+
+        function movePac() {
+            let speed = pac.speed;
+            const currentZone = isInCrowdZone(pac.x, pac.y);
+            if (currentZone) {
+                if (currentZone.status === 'yellow') speed *= 0.75;
+                if (currentZone.status === 'red') speed *= 0.5;
+            }
+            if (timeCrackMode) speed *= 0.5;
+
+            if (Math.random() > speed) return; // Apply speed reduction
+
+            let newX = pac.x, newY = pac.y;
+            // Try to change to next direction
+            if (canMove(pac.x, pac.y, pac.nextDirection)) {
+                pac.direction = pac.nextDirection;
+            }
+            
+            // Move in current direction
+            if (canMove(pac.x, pac.y, pac.direction)) {
+                switch (pac.direction) {
+                    case 'up': pac.y--; break;
+                    case 'down': pac.y++; break;
+                    case 'left': pac.x--; break;
+                    case 'right': pac.x++; break;
+                }
+            }
+        }
+
+        function moveMonsters() {
+             crowdMonsters.forEach(monster => {
+                if (Math.random() > 0.8) { // Monsters move slightly slower
+                    const directions = ['up', 'down', 'left', 'right'];
+                    let moved = false;
+                    let attempts = 0;
+
+                    // Prefer to continue in the same direction if possible
+                    if (canMove(monster.x, monster.y, monster.direction) && Math.random() < 0.8) {
+                        // move
+                    } else {
+                        // Change direction randomly
+                        monster.direction = directions[Math.floor(Math.random() * 4)];
+                    }
+
+                    if (canMove(monster.x, monster.y, monster.direction)) {
+                        switch (monster.direction) {
+                            case 'up': monster.y--; break;
+                            case 'down': monster.y++; break;
+                            case 'left': monster.x--; break;
+                            case 'right': monster.y++; break;
+                        }
+                    }
+                }
+             });
+        }
+        
+        function canMove(x, y, direction) {
+            let newX = x, newY = y;
+            switch(direction) {
+                case 'up': newY--; break;
+                case 'down': newY++; break;
+                case 'left': newX--; break;
+                case 'right': newX++; break;
+            }
+            if (newX < 0 || newX >= BOARD_WIDTH || newY < 0 || newY >= BOARD_HEIGHT) {
+                return false;
+            }
+            return maze[newY][newX] !== 1;
+        }
+
+        function isInCrowdZone(x, y) {
+            return crowdZones.find(zone => 
+                x >= zone.x && x < zone.x + zone.width && y >= zone.y && y < zone.y + zone.height
+            );
+        }
+        
+        function checkCollisions() {
+            // Collect items
+            efficiencyDots = efficiencyDots.filter(dot => {
+                if (dot.x === pac.x && dot.y === pac.y) {
+                    score += dot.value; updateScore(); return false;
+                } return true;
+            });
+            radarDots = radarDots.filter(dot => {
+                if (dot.x === pac.x && dot.y === pac.y) {
+                    radarCount++; updateRadarCount(); return false;
+                } return true;
+            });
+            alternativePoints = alternativePoints.filter(point => {
+                if (point.x === pac.x && point.y === pac.y) {
+                    score += point.bonus; updateScore(); return false;
+                } return true;
+            });
+
+            // Check monster collision
+            crowdMonsters.forEach(monster => {
+                if (monster.x === pac.x && monster.y === pac.y) {
+                    timeLeft = Math.max(0, timeLeft - 10);
+                    updateTime();
+                    // Reset Pac's position
+                    pac.x = 1; pac.y = 1;
+                }
+            });
+
+            // Check win condition
+            if (maze[pac.y][pac.x] === 9 && score >= WIN_SCORE) {
+                winGame();
+            }
+        }
+
+        // --- Drawing Functions ---
+        function drawGame() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            drawCrowdZones();
+            if (radarActive) drawRadarPredictions();
+            drawMaze();
+            drawItems();
+            drawMonsters();
+            drawPac();
+        }
+
+        function drawCrowdZones() {
+            crowdZones.forEach(zone => {
+                ctx.fillStyle = zone.status === 'red' ? 'rgba(244, 67, 54, 0.2)' :
+                               zone.status === 'yellow' ? 'rgba(255, 152, 0, 0.15)' :
+                               'rgba(76, 175, 80, 0.1)';
+                ctx.fillRect(zone.x * CELL_SIZE, zone.y * CELL_SIZE, zone.width * CELL_SIZE, zone.height * CELL_SIZE);
+            });
+        }
+        
+        function drawRadarPredictions() {
+            crowdZones.forEach(zone => {
+                if (zone.nextStatus === 'red') {
+                    ctx.strokeStyle = '#00ff88';
+                    ctx.lineWidth = 2;
+                    ctx.setLineDash([5, 5]);
+                    ctx.strokeRect(zone.x * CELL_SIZE, zone.y * CELL_SIZE, zone.width * CELL_SIZE, zone.height * CELL_SIZE);
+                    ctx.setLineDash([]);
+                }
+            });
+        }
+
+        function drawMaze() {
+            const wallGradient = ctx.createLinearGradient(0,0,0,canvas.height);
+            wallGradient.addColorStop(0, '#2c3e50');
+            wallGradient.addColorStop(1, '#34495e');
+
+            for (let y = 0; y < BOARD_HEIGHT; y++) {
+                for (let x = 0; x < BOARD_WIDTH; x++) {
+                    if (maze[y][x] === 1) {
+                        ctx.fillStyle = wallGradient;
+                        ctx.fillRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+                    } else if (maze[y][x] === 9) {
+                        ctx.fillStyle = (score >= WIN_SCORE) ? '#00ff88' : '#555';
+                        ctx.fillRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+                        ctx.fillStyle = '#000';
+                        ctx.font = 'bold 12px Arial';
+                        ctx.textAlign = 'center';
+                        ctx.fillText('門', x * CELL_SIZE + CELL_SIZE/2, y * CELL_SIZE + CELL_SIZE/2 + 4);
+                    }
+                }
+            }
+        }
+        
+        function drawItems() {
+            const drawDot = (dot, color, radius, shape = 'circle') => {
+                const x = dot.x * CELL_SIZE + CELL_SIZE/2;
+                const y = dot.y * CELL_SIZE + CELL_SIZE/2;
+                ctx.fillStyle = color;
+                ctx.beginPath();
+                if (shape === 'circle') ctx.arc(x, y, radius, 0, Math.PI * 2);
+                else ctx.rect(x - radius, y - radius, radius * 2, radius * 2);
+                ctx.fill();
+            };
+            const dotColors = { 'note': '#ffd700', 'lunchbox': '#ff6b6b', 'study-hour': '#4ecdc4', 'toilet-ticket': '#9b59b6' };
+            efficiencyDots.forEach(d => drawDot(d, dotColors[d.type], 3));
+            radarDots.forEach(d => drawDot(d, '#00ff88', 5));
+            alternativePoints.forEach(d => drawDot(d, '#ff9800', 6, 'square'));
+        }
+        
+        function drawPac() {
+            const pacX = pac.x * CELL_SIZE + CELL_SIZE/2;
+            const pacY = pac.y * CELL_SIZE + CELL_SIZE/2;
+            ctx.fillStyle = '#ffff00';
+            ctx.beginPath();
+            ctx.arc(pacX, pacY, CELL_SIZE/2 - 2, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        
+        function drawMonsters() {
+            const monsterColors = { 'office': '#e74c3c', 'cafeteria': '#f39c12', 'library': '#9b59b6', 'bathroom': '#3498db' };
+            crowdMonsters.forEach(m => {
+                const x = m.x * CELL_SIZE + CELL_SIZE/2;
+                const y = m.y * CELL_SIZE + CELL_SIZE/2;
+                ctx.fillStyle = monsterColors[m.type];
+                ctx.beginPath();
+                ctx.arc(x, y, CELL_SIZE/2 - 2, 0, Math.PI * 2);
+                ctx.fill();
+                // Eyes
+                ctx.fillStyle = 'white';
+                ctx.beginPath();
+                ctx.arc(x-3, y-2, 2, 0, Math.PI * 2);
+                ctx.arc(x+3, y-2, 2, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        }
+        
+        // --- UI and Game State Functions ---
+        function updateScore() { scoreElement.textContent = Math.floor(score); }
+        function updateTime() {
+            timeLeftElement.textContent = timeLeft;
+            timeBarElement.style.width = `${(timeLeft / MAX_TIME) * 100}%`;
+        }
+        function updateRadarCount() { radarCountElement.textContent = radarCount; }
+
+        function useRadar() {
+            if (radarCount > 0 && !radarActive) {
+                radarCount--;
+                radarActive = true;
+                radarTimer = 100; // 5 seconds at 20fps
+                updateRadarCount();
+            }
+        }
+
+        function endGame(message) {
+            gameRunning = false;
+            clearInterval(gameLoop);
+            clearInterval(timeInterval);
+            gameOverElement.style.display = 'block';
+            gameOverElement.querySelector('h2').textContent = message;
+            finalScoreElement.textContent = Math.floor(score);
+        }
+
+        function winGame() {
+            gameRunning = false;
+            clearInterval(gameLoop);
+            clearInterval(timeInterval);
+            gameWinElement.style.display = 'block';
+            winScoreElement.textContent = Math.floor(score + timeLeft * 5); // Time bonus
+        }
+        
+        function restartGame() {
+            initGame();
+        }
+
+        // --- Event Listeners ---
+        window.addEventListener('keydown', e => {
+            switch (e.key) {
+                case 'ArrowUp': case 'w': pac.nextDirection = 'up'; break;
+                case 'ArrowDown': case 's': pac.nextDirection = 'down'; break;
+                case 'ArrowLeft': case 'a': pac.nextDirection = 'left'; break;
+                case 'ArrowRight': case 'd': pac.nextDirection = 'right'; break;
+                case ' ': e.preventDefault(); useRadar(); break; // Spacebar
+            }
+        });
+
+        // Initial Start
+        initGame();
+    </script>
+</body>
+</html>
