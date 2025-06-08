@@ -169,6 +169,7 @@
     </style>
 </head>
 <body>
+    <audio id="bgm" src="./背景音樂-TIMELESS.mp3" loop></audio>
     <div class="game-container">
         <div class="game-header">
             <div class="game-info">
@@ -235,6 +236,7 @@
         // DOM Elements
         const canvas = document.getElementById('gameBoard');
         const ctx = canvas.getContext('2d');
+        const bgm = document.getElementById('bgm');
         const scoreElement = document.getElementById('score');
         const timeLeftElement = document.getElementById('timeLeft');
         const timeBarElement = document.getElementById('timeBar');
@@ -678,8 +680,19 @@
         }
 
         // --- Event Listeners ---
+        let musicStarted = false; // Add a flag to play music only once
+
         window.addEventListener('keydown', e => {
+            // Start background music on first user interaction
+            if (!musicStarted) {
+                bgm.volume = 0.3; // Set a pleasant volume (0.0 to 1.0)
+                bgm.play();
+                musicStarted = true;
+            }
+
             switch (e.key) {
+                case 'ArrowUp': case 'w': pac.nextDirection = 'up'; break;
+                // ... (rest of the switch statement)
                 case 'ArrowUp': case 'w': pac.nextDirection = 'up'; break;
                 case 'ArrowDown': case 's': pac.nextDirection = 'down'; break;
                 case 'ArrowLeft': case 'a': pac.nextDirection = 'left'; break;
