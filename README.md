@@ -7,7 +7,7 @@ Welcome to a modern reimagining of a classic arcade game. In **Crowd Flash PAC**
 
 ---
 
-## 🎮 Game Concept
+## Game Concept
 
 You are the **Efficiency Seeker (PAC)**, a time-savvy student trying to navigate a busy campus. Your goal is to collect "efficiency points" (notes, lunchboxes, etc.) to complete your day's tasks. However, the hallways are flooded with **Crowd Monsters** and ever-changing high-traffic "Crowd Zones" that drain your most valuable resource: **time**.
 
@@ -15,7 +15,7 @@ Use your AI-powered radar to predict human flow, find the path of least resistan
 
 ---
 
-## ✨ Features
+## Features
 
 *   **Dynamic Crowd Light Zones:** The map is divided into zones that dynamically change from **Green (Clear)**, to **Yellow (Slightly Crowded)**, to **Red (Congested)**. Red zones slow you down and drain your time twice as fast!
 *   **AI Radar Power-up:** Collect and use the AI Radar (`Spacebar`) to get a 5-second preview of which zones will become congested next, allowing you to plan your route strategically.
@@ -24,7 +24,7 @@ Use your AI-powered radar to predict human flow, find the path of least resistan
 
 ---
 
-## 🕹️ How to Play
+## How to Play
 
 1.  **Objective:** Collect **300 efficiency points** to activate the Time Exit Door.
 2.  **Goal:** Reach the activated door before the 120-second timer runs out.
@@ -37,7 +37,7 @@ Use your AI-powered radar to predict human flow, find the path of least resistan
 
 ---
 
-## 🚀 How to Run
+## How to Run
 
 This is a simple web-based game. No installation is required.
 
@@ -47,7 +47,7 @@ This is a simple web-based game. No installation is required.
 
 ---
 
-## 📁 Folder Structure
+## Folder Structure
 
 ```
 .
